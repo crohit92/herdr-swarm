@@ -31,13 +31,27 @@ const stateFilter = includeAll
   ? ""
   : ` AND [System.State] NOT IN (${closedStates.map((s) => `'${s}'`).join(", ")})`;
 
+// The project the az defaults point at. Items are limited to it so the list
+// doesn't mix in work from other projects in the organization.
+async function defaultProject(): Promise<string> {
+  const config = await $`az devops configure -l`.quiet().nothrow();
+  const match = config.stdout.toString().match(/^\s*project\s*=\s*(.+)$/m);
+  const project = match?.[1]?.trim();
+  if (!project) die("no default project is set. Run: az devops configure -d project=NAME");
+  return project;
+}
+
+const project = await defaultProject();
+// Escape single quotes for the WIQL string literal.
+const projectLiteral = `'${project.replace(/'/g, "''")}'`;
+
 const wiql =
   "SELECT [System.Id], [System.Title], [System.State], [System.WorkItemType], [System.Description], [System.Tags] " +
   "FROM WorkItems " +
-  `WHERE [System.AssignedTo] = @Me${stateFilter} ` +
+  `WHERE [System.AssignedTo] = @Me AND [System.TeamProject] = ${projectLiteral}${stateFilter} ` +
   "ORDER BY [System.ChangedDate] DESC";
 
-const result = await $`az boards query --wiql ${wiql} -o json`.quiet().nothrow();
+const result = await $`az boards query --wiql ${wiql} --project ${project} -o json`.quiet().nothrow();
 if (result.exitCode !== 0) {
   die(`az boards query failed:\n${result.stderr.toString().trim()}`);
 }
