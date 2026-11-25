@@ -1,0 +1,32 @@
+id = "dev.automation"
+name = "Development Automation Plugin"
+version = "0.1.0"
+min_herdr_version = "0.9.5"
+description = "Azure DevOps and GitHub CLI setup for herdr workflows."
+platforms = ["macos", "linux"]
+
+# Action ids are hyphenated on purpose: herdr rejects dots in action ids.
+
+[[actions]]
+id = "setup-tools"
+title = "Check and install CLI tools"
+description = "Verify or install az, the azure-devops extension, gh and bun"
+command = ["bun", "run", "scripts/setup-cli-tools.ts"]
+
+[[actions]]
+id = "configure-azure"
+title = "Configure Azure DevOps defaults"
+description = "Set the az organization and project from the workspace repo's .env"
+command = ["bun", "run", "scripts/configure-azure-defaults.ts"]
+
+[[actions]]
+id = "list-my-work-items"
+title = "List my Azure work items"
+description = "Show open Azure Boards work items assigned to you, with descriptions"
+command = ["bun", "run", "scripts/list-my-work-items.ts"]
+
+[[actions]]
+id = "create-work-item"
+title = "Create an Azure work item"
+description = "Create a work item assigned to you. Input comes from WORK_ITEM_* environment variables"
+command = ["bun", "run", "scripts/create-work-item.ts"]
