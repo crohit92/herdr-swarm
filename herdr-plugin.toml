@@ -54,3 +54,9 @@ id = "dev-reset-work-item"
 title = "herdr-dev: reset a work item"
 description = "Archive a claimed or running flag and set the work item back to To Do"
 command = ["bun", "run", "scripts/dev-reset-work-item.ts"]
+
+[[actions]]
+id = "build-herdr-dev-mod"
+title = "herdr-dev: build and install the mod"
+description = "Validate and test the herdr-dev mod, then install it in ~/.claude/plugins/herdr-dev"
+command = ["bun", "run", "scripts/build-mod.ts"]
