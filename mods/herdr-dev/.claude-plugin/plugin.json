@@ -1,0 +1,6 @@
+{
+  "name": "herdr-dev",
+  "version": "0.1.0",
+  "description": "Works through assigned Azure Boards items one at a time: worktree, agent in a Herdr pane, pull request, Done.",
+  "types": "./types/index.d.ts"
+}

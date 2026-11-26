@@ -30,3 +30,27 @@ id = "create-work-item"
 title = "Create an Azure work item"
 description = "Create a work item assigned to you. Input comes from WORK_ITEM_* environment variables"
 command = ["bun", "run", "scripts/create-work-item.ts"]
+
+[[actions]]
+id = "dev-fetch-work-items"
+title = "herdr-dev: fetch my work items"
+description = "Refresh the queue of assigned Azure Boards work items for herdr-dev"
+command = ["bun", "run", "scripts/dev-fetch-work-items.ts"]
+
+[[actions]]
+id = "dev-claim-work-item"
+title = "herdr-dev: claim a work item"
+description = "Set a work item to Doing and create its worktree for herdr-dev"
+command = ["bun", "run", "scripts/dev-claim-work-item.ts"]
+
+[[actions]]
+id = "dev-finish-work-item"
+title = "herdr-dev: finish a work item"
+description = "Push the branch, open the pull request and set the work item to Done"
+command = ["bun", "run", "scripts/dev-finish-work-item.ts"]
+
+[[actions]]
+id = "dev-reset-work-item"
+title = "herdr-dev: reset a work item"
+description = "Archive a claimed or running flag and set the work item back to To Do"
+command = ["bun", "run", "scripts/dev-reset-work-item.ts"]
