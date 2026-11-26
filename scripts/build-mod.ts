@@ -7,9 +7,10 @@
 // The copy replaces the previous build in that folder. Claude hot-loads function-hook
 // mods from dev-mods; a skills-folder plugin loads but its hooks module does not.
 
-import { cp, rm, stat } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, cp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { delimiter, join, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const source = join(repoRoot, "mods", "herdr-dev");
@@ -24,6 +25,23 @@ async function run(argv: string[], cwd: string): Promise<{ exitCode: number; out
   const p = Bun.spawn(argv, { cwd, stdout: "pipe", stderr: "pipe" });
   const [stdout, stderr] = await Promise.all([new Response(p.stdout).text(), new Response(p.stderr).text()]);
   return { exitCode: await p.exited, output: stdout + stderr };
+}
+
+// Adds the folder to CLAUDE_CODE_PLUGIN_DIRS in the user's settings, keeping other entries
+// and settings. Saves a backup before writing, and writes only when something changed.
+async function registerPluginDir(dir: string): Promise<void> {
+  const settingsPath = join(homedir(), ".claude", "settings.json");
+  const settings = existsSync(settingsPath) ? JSON.parse(await readFile(settingsPath, "utf8")) : {};
+  settings.env = settings.env ?? {};
+  const entries: string[] = (settings.env.CLAUDE_CODE_PLUGIN_DIRS ?? "").split(delimiter).filter(Boolean);
+  if (entries.includes(dir)) {
+    console.log("already registered");
+    return;
+  }
+  if (existsSync(settingsPath)) await copyFile(settingsPath, `${settingsPath}.bak`);
+  settings.env.CLAUDE_CODE_PLUGIN_DIRS = [...entries, dir].join(delimiter);
+  await writeFile(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+  console.log(`added ${dir}`);
 }
 
 async function main(): Promise<void> {
@@ -46,7 +64,9 @@ async function main(): Promise<void> {
   await cp(source, target, { recursive: true });
   console.log("installed");
 
-  console.log("\nClaude hot-loads the mod from this folder; check /herdr-dev status in a session.");
+  console.log("\n==> Registering the folder in ~/.claude/settings.json");
+  await registerPluginDir(target);
+  console.log("registered. Start a new Claude session, then run /herdr-dev status.");
 }
 
 await main();
