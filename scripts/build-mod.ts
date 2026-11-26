@@ -3,9 +3,9 @@
 // Builds the herdr-dev mod and installs it in the user-level Claude folder:
 //   1. validates the mod with `claude plugin validate`,
 //   2. runs the mod's tests,
-//   3. copies mods/herdr-dev to ~/.claude/skills/herdr-dev.
-// The copy replaces the previous build in that folder. Plugins in the skills folder
-// load by themselves at the next session start, as <name>@skills-dir; no registration.
+//   3. copies mods/herdr-dev to ~/.claude/dev-mods/herdr-dev.
+// The copy replaces the previous build in that folder. Claude hot-loads function-hook
+// mods from dev-mods; a skills-folder plugin loads but its hooks module does not.
 
 import { cp, rm, stat } from "node:fs/promises";
 import { homedir } from "node:os";
@@ -13,7 +13,7 @@ import { join, resolve } from "node:path";
 
 const repoRoot = resolve(import.meta.dir, "..");
 const source = join(repoRoot, "mods", "herdr-dev");
-const target = join(homedir(), ".claude", "skills", "herdr-dev");
+const target = join(homedir(), ".claude", "dev-mods", "herdr-dev");
 
 function fail(message: string): never {
   console.error(`ERROR: ${message}`);
@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   await cp(source, target, { recursive: true });
   console.log("installed");
 
-  console.log("\nThe mod loads at the next Claude session start, as herdr-dev@skills-dir.");
+  console.log("\nClaude hot-loads the mod from this folder; check /herdr-dev status in a session.");
 }
 
 await main();
