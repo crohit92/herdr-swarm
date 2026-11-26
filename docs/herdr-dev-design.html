@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>herdr-dev: design document</title>
+<style>
+/* Layout: a single reading column with a sticky contents rail on wide screens. */
+:root {
+  --bg: #fbfaf7;
+  --surface: #ffffff;
+  --fg: #1d1f24;
+  --muted: #5d6270;
+  --rule: #e3e1da;
+  --accent: #2f5fd0;
+  --accent-soft: #e6edfb;
+  --code-bg: #f1f0ec;
+  --ok: #1f7a4d;
+  --warn: #9a5b00;
+  --warn-soft: #fbf1df;
+  --bad: #a1282b;
+  --bad-soft: #f8e5e5;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #15171c;
+    --surface: #1d2027;
+    --fg: #e8e9ec;
+    --muted: #9ba1ae;
+    --rule: #2d3139;
+    --accent: #8fb0ff;
+    --accent-soft: #232c44;
+    --code-bg: #111318;
+    --ok: #6fd39d;
+    --warn: #e7b25e;
+    --warn-soft: #3a2d17;
+    --bad: #f08a8c;
+    --bad-soft: #3d1f20;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #15171c;
+  --surface: #1d2027;
+  --fg: #e8e9ec;
+  --muted: #9ba1ae;
+  --rule: #2d3139;
+  --accent: #8fb0ff;
+  --accent-soft: #232c44;
+  --code-bg: #111318;
+  --ok: #6fd39d;
+  --warn: #e7b25e;
+  --warn-soft: #3a2d17;
+  --bad: #f08a8c;
+  --bad-soft: #3d1f20;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-block: 40px 96px;
+}
+@media (min-width: 980px) {
+  .layout { grid-template-columns: 220px minmax(0, 1fr); }
+  nav.toc { position: sticky; top: 24px; align-self: start; }
+}
+nav.toc { font-size: 14px; }
+nav.toc h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; }
+nav.toc ol { list-style: none; padding: 0; margin: 0; }
+nav.toc li { margin: 0 0 6px; }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); }
+
+main { min-width: 0; max-width: 760px; }
+h1, h2, h3 { line-height: 1.25; text-wrap: balance; }
+h1 { font-size: 34px; margin: 0 0 8px; letter-spacing: -.01em; }
+h2 { font-size: 24px; margin: 56px 0 14px; padding-top: 18px; border-top: 1px solid var(--rule); }
+h3 { font-size: 18px; margin: 28px 0 8px; }
+p, li { max-width: 68ch; }
+.lede { font-size: 18px; color: var(--muted); margin: 0 0 24px; }
+.meta { font-size: 13px; color: var(--muted); letter-spacing: .02em; }
+a { color: var(--accent); }
+code, .mono { font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+pre { background: var(--code-bg); padding: 14px 16px; border-radius: 8px; overflow-x: auto; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }
+pre code { background: none; padding: 0; }
+
+.callout {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  padding: 14px 18px;
+  border-radius: 6px;
+  margin: 20px 0;
+  max-width: 68ch;
+}
+.callout.warn { background: var(--warn-soft); border-color: var(--warn); }
+.callout.bad { background: var(--bad-soft); border-color: var(--bad); }
+.callout strong { display: block; margin-bottom: 4px; }
+
+.tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.tag.confirm { background: var(--warn-soft); color: var(--warn); }
+
+table { width: 100%; border-collapse: collapse; margin: 14px 0 22px; font-size: 14px; display: block; overflow-x: auto; }
+th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--rule); }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+td code { white-space: nowrap; }
+
+.decisions { border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--surface); }
+.decisions table { margin: 0; display: table; }
+.decisions th, .decisions td { padding: 11px 14px; }
+
+ol.steps { padding-left: 0; list-style: none; counter-reset: step; }
+ol.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 18px 44px;
+  margin: 0;
+  border-left: 1px solid var(--rule);
+  margin-left: 14px;
+}
+ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+ol.steps > li::before {
+  content: counter(step);
+  position: absolute;
+  left: -15px; top: -2px;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  color: var(--accent);
+  font-size: 13px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center;
+}
+ol.steps > li strong { display: block; margin-bottom: 2px; }
+ol.steps > li .why { color: var(--muted); font-size: 14px; }
+
+figure { margin: 24px 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; }
+figure svg { width: 100%; height: auto; display: block; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.diagram-text { font: 12px ui-sans-serif, system-ui, sans-serif; fill: var(--fg); }
+.diagram-muted { font: 11px ui-sans-serif, system-ui, sans-serif; fill: var(--muted); }
+.box { fill: var(--surface); stroke: var(--rule); stroke-width: 1.5; }
+.box-accent { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.box-store { fill: var(--code-bg); stroke: var(--rule); stroke-width: 1.5; stroke-dasharray: 4 3; }
+.arrow { stroke: var(--muted); stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+
+.state-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.pill { font: 13px ui-monospace, Menlo, monospace; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--rule); background: var(--surface); }
+.pill.ok { color: var(--ok); }
+.pill.warn { color: var(--warn); }
+.pill.bad { color: var(--bad); }
+
+details { border: 1px solid var(--rule); border-radius: 8px; padding: 10px 14px; margin: 12px 0; background: var(--surface); }
+details summary { cursor: pointer; font-weight: 600; }
+details[open] summary { margin-bottom: 8px; }
+
+footer { margin-top: 64px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="toc" aria-label="Contents">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#purpose">1. Purpose and scope</a></li>
+    <li><a href="#glossary">2. Glossary and states</a></li>
+    <li><a href="#decisions">3. Decisions and defaults</a></li>
+    <li><a href="#architecture">4. Architecture</a></li>
+    <li><a href="#commands">5. Commands</a></li>
+    <li><a href="#config">6. Configuration</a></li>
+    <li><a href="#state">7. State directory</a></li>
+    <li><a href="#iteration">8. One iteration</a></li>
+    <li><a href="#flags">9. Flags, hanging work, mismatches</a></li>
+    <li><a href="#actions">10. Actions</a></li>
+    <li><a href="#agents">11. Agent launch and completion</a></li>
+    <li><a href="#notify">12. Notifications</a></li>
+    <li><a href="#failures">13. Failure modes</a></li>
+    <li><a href="#safety">14. Safety</a></li>
+    <li><a href="#open">15. Open questions and spikes</a></li>
+    <li><a href="#phases">16. Phases and tests</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<p class="meta">Design document · herdr-dev · 26 November 2026 · Status: draft for review</p>
+<h1>herdr-dev: design document</h1>
+<p class="lede">A Claude mod that works through your assigned Azure Boards items one at a time. Each item gets its own git worktree, a Claude agent in a Herdr pane, a pull request into <code>main</code>, and a Done status on the board.</p>
+
+<div class="callout">
+  <strong>Nothing is built yet.</strong>
+  This document describes what will be built. Each decision is marked <span class="tag">confirm or change</span> where it is a default I chose. Tell me what to change and I will update this document before building.
+</div>
+
+<h2 id="purpose">1. Purpose and scope</h2>
+<p>You assign work to yourself on Azure Boards. <strong>herdr-dev</strong> picks it up on a timer, does it with an agent, and returns it to you as a pull request marked Done on the board. You review and merge the pull request yourself.</p>
+
+<h3>In scope</h3>
+<ul>
+  <li>A <code>/herdr-dev</code> mod with three commands: <code>start</code>, <code>stop</code>, <code>status</code>.</li>
+  <li>A timer that runs one <em>iteration</em> per interval, read from the target project's <code>.env</code>.</li>
+  <li>Reading your assigned items, claiming one at a time, and running one agent at a time.</li>
+  <li>Per-item worktrees, branches, pushes, pull requests into the base branch, and Azure state changes.</li>
+  <li>Reporting conflicts and mismatches to you in a pane and with toasts. Deciding what to do about them is up to you.</li>
+  <li>Four Herdr plugin actions that do the outward steps (Azure writes, git push, pull request).</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Merging pull requests. A person merges.</li>
+  <li>Work items not assigned to you, and items in other projects.</li>
+  <li>Editing any Azure field other than the state.</li>
+  <li>Running more than one item at a time, or more than one agent at a time.</li>
+  <li>Running while no Claude session is open. The loop lives in a session (see <a href="#architecture">section 4</a>).</li>
+</ul>
+
+<h2 id="glossary">2. Glossary and states</h2>
+<table>
+  <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Target project</strong></td><td>The git repository whose <code>.env</code> holds the Azure settings. Resolved as the git root of the folder where <code>/herdr-dev start</code> is run.</td></tr>
+    <tr><td><strong>Iteration (tick)</strong></td><td>One run of the timer's guard list (section 8). Most ticks do nothing and say why.</td></tr>
+    <tr><td><strong>Flag</strong></td><td>A JSON file, one per work item, in <code>flags/</code>. It is the lock and the record of where that item is in the pipeline.</td></tr>
+    <tr><td><strong>Run</strong></td><td>All work for one item, from its claim to its done flag.</td></tr>
+    <tr><td><strong>Hanging</strong></td><td>A flag that is still in progress, but no live agent is working on it: its agent is unknown or has stopped without a result (section 9). A flag whose agent is known and working is never hanging, however long it has run.</td></tr>
+    <tr><td><strong>Mismatch</strong></td><td>A disagreement between a flag and Azure, or a flag and the fetched items. Reported only, never fixed automatically.</td></tr>
+    <tr><td><strong>Conflict</strong></td><td>A flag that blocks the queue, such as a top-priority item that already has a flag. Reported in the pane.</td></tr>
+  </tbody>
+</table>
+
+<h3>Azure states</h3>
+<p>The Basic process uses three states: <code>To Do</code>, <code>Doing</code>, <code>Done</code>. The mod only ever moves an item between these.</p>
+
+<h3>Flag statuses</h3>
+<div class="state-pills">
+  <span class="pill">claiming</span><span class="pill">doing</span><span class="pill">finishing</span><span class="pill">done</span>
+</div>
+<p>A flag lives from <code>claiming</code> to <code>done</code>. <code>done</code> flags stay as a record. Every other status is in progress and blocks the queue.</p>
+
+<h2 id="decisions">3. Decisions and defaults</h2>
+<p>These are the choices you made in the planning conversation, followed by defaults I chose where you did not specify. Each default says what it means in practice.</p>
+
+<div class="decisions">
+<table>
+  <thead><tr><th>Topic</th><th>Decision</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Notifications</td><td>A pane lists every open conflict and mismatch. A toast appears when a new one is raised.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Finishing steps</td><td>The mod performs them by invoking Herdr actions (section 10).</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Agent permissions</td><td>The agent runs with <code>--dangerously-skip-permissions</code>, isolated by its worktree (section 14).</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Commands</td><td><code>start</code>, <code>stop</code>, <code>status</code>.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Hanging work</td><td>A flag in progress with no live agent is hanging. It is reset, archived, and the item re-enters the queue at its priority. You are not asked first.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Plugin rollout</td><td>You push to GitHub and update the Herdr plugin yourself. The mod never runs <code>plugin update</code>, <code>link</code> or <code>unlink</code>.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Interval</td><td>From <code>HERDR_DEV_INTERVAL_SECONDS</code> in the target project's <code>.env</code>. Required. Minimum 30 seconds.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Action invocation</td><td><code>herdr plugin action invoke</code> returns at once with status <code>running</code> (measured at 8 ms). The mod waits for the run by checking the plugin log on each tick, without blocking the timer.</td><td><span class="tag">tested</span></td></tr>
+    <tr><td>Action results</td><td>Each action's exit code and stdout come from <code>herdr plugin log list --plugin dev.automation</code>, matched by <code>log_id</code>. Actions do not write result files.</td><td><span class="tag">tested</span></td></tr>
+    <tr><td>State directory</td><td>The mod computes the default path. The fetch action prints <code>HERDR_PLUGIN_STATE_DIR</code> in its output. If the two differ, <code>start</code> refuses and reports both.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Agent bypass flag</td><td>The agent is started with <code>--dangerously-skip-permissions</code>. To be tested before building.</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Folder trust</td><td>Before starting an agent, the mod marks that item's worktree as trusted in <code>~/.claude.json</code> (<code>projects[&lt;path&gt;].hasTrustDialogAccepted</code>). It does this only for worktrees under the configured worktree folder. The alternative, sending Enter to the trust prompt, is fragile and is not used.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Completion of an agent</td><td>The agent is idle or done <em>and</em> it has written its result file. Idle alone is not enough. The mod polls each tick and never blocks on a wait command.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Liveness of an agent</td><td>A mod-owned record in <code>agents/</code> plus <code>herdr agent get</code> finds it. The record is a file, so it survives a restart of Claude.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Grace period</td><td>An agent that was just started is not judged hanging until it has been seen <code>working</code> once, or two minutes have passed. This avoids resetting an agent that has not yet picked up its prompt.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Retry cap</td><td>After 3 resets of the same item the mod stops resetting it and reports it. <code>HERDR_DEV_MAX_ATTEMPTS</code> overrides the cap.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Blocked agent</td><td>An agent waiting for input is reported, not reset.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Failed result</td><td>An agent that writes <code>"status": "failed"</code> is reported. The flag stays <code>doing</code> and blocks the queue until you decide. It is not reset automatically.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Other mismatches</td><td>Report only (section 9).</td><td><span class="tag">your decision</span></td></tr>
+    <tr><td>Fetch scope</td><td>Items assigned to you in the default project, in states To Do, Doing and Done.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Top item has a flag</td><td>The iteration reports it and skips. It does not fall through to a lower-priority item.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Concurrency</td><td>Any flag in <code>claiming</code>, <code>doing</code> or <code>finishing</code> means a run is in progress. Nothing new starts.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Ordering</td><td>Priority ascending (smaller wins), then id ascending. Items with no priority come last.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Worktree</td><td><code>&lt;repo-parent&gt;/&lt;repo&gt;-worktrees/wi-&lt;id&gt;</code>, branch <code>feature/wi-&lt;id&gt;-&lt;slug&gt;</code>, created from a fresh <code>origin/&lt;base&gt;</code>. Worktrees are kept after the pull request.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Base branch</td><td><code>main</code>, overridable with <code>HERDR_DEV_BASE_BRANCH</code>.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Agent commits</td><td>The agent commits in its worktree but does not push or open pull requests. The finish action does that.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+    <tr><td>Mod source</td><td>Built in <code>~/.claude/dev-mods/&lt;session&gt;/herdr-dev/</code>, then copied into the repo under <code>mods/herdr-dev/</code>.</td><td><span class="tag confirm">confirm or change</span></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h3>Why the mod and the actions talk through files</h3>
+<p>The mod and the actions are separate processes. Each action runs with Herdr's environment, including <code>HERDR_PLUGIN_STATE_DIR</code>, so an action does not need the mod to pass it anything. The mod has to pass one thing: the work item id, which an action cannot otherwise know. <code>herdr plugin action invoke</code> accepts no arguments, so that id goes through a small request file. The design keeps the channels as small as possible.</p>
+<ul>
+  <li>The actions write every state file that describes work: the fetched list and the flags. The mod reads them.</li>
+  <li>The mod writes almost nothing the actions need. The one exception is a small request file for an action that acts on one item: <code>requests/&lt;action&gt;.json</code>, containing <code>{ "workItemId": 12 }</code>. The action deletes it after reading.</li>
+  <li>Action outcomes come from the plugin log, not from files. Invoking an action returns at once. The mod records the <code>log_id</code> it was given, then checks <code>herdr plugin log list</code> on later ticks until that run is no longer <code>running</code>. The exit code and stdout of that run are the outcome. A flag moved to <code>archive/</code> still records a failure's reason for later reading.</li>
+  <li>The agent is different. It writes <code>results/wi-&lt;id&gt;.json</code>, and the mod reads it. This file is how the agent reports back.</li>
+</ul>
+<p>The mod starts from a default state directory: <code>$HERDR_DEV_STATE_DIR</code> if set, otherwise <code>${XDG_STATE_HOME:-~/.local/state}/herdr/plugins/dev.automation</code>. That path is observed on this machine, but Herdr does not document it. The fetch action prints the real <code>HERDR_PLUGIN_STATE_DIR</code>, and <code>start</code> compares the two (section 3, state directory).</p>
+
+<h2 id="architecture">4. Architecture</h2>
+<p>The loop runs in a Claude session. The mod's timer drives it, and the Herdr actions do the outward work. The agent runs in a pane that Herdr manages.</p>
+
+<figure>
+  <svg viewBox="0 0 760 380" role="img" aria-labelledby="arch-title arch-desc">
+    <title id="arch-title">herdr-dev architecture</title>
+    <desc id="arch-desc">The mod's timer reads and writes the state directory. It invokes Herdr actions, which call Azure CLI and git and gh. It splits a Herdr pane and starts a Claude agent there. The agent works in a git worktree and writes a result file to the state directory.</desc>
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+        <path d="M0 0 L10 5 L0 10 z" fill="currentColor" style="color: var(--muted)"/>
+      </marker>
+    </defs>
+
+    <rect class="box-accent" x="20" y="20" width="200" height="90" rx="10"/>
+    <text class="diagram-text" x="36" y="50" font-weight="600">herdr-dev mod</text>
+    <text class="diagram-muted" x="36" y="70">timer · guards · flags</text>
+    <text class="diagram-muted" x="36" y="88">runs in a Claude session</text>
+
+    <rect class="box" x="280" y="20" width="200" height="90" rx="10"/>
+    <text class="diagram-text" x="296" y="50" font-weight="600">Herdr actions</text>
+    <text class="diagram-muted" x="296" y="70">fetch · claim · finish · reset</text>
+    <text class="diagram-muted" x="296" y="88">run as plugin commands</text>
+
+    <rect class="box" x="540" y="20" width="200" height="90" rx="10"/>
+    <text class="diagram-text" x="556" y="50" font-weight="600">Azure, git, gh</text>
+    <text class="diagram-muted" x="556" y="70">az boards · git push</text>
+    <text class="diagram-muted" x="556" y="88">gh pr create</text>
+
+    <rect class="box-store" x="20" y="200" width="200" height="110" rx="10"/>
+    <text class="diagram-text" x="36" y="230" font-weight="600">State directory</text>
+    <text class="diagram-muted" x="36" y="250">flags/ · agents/ · results/</text>
+    <text class="diagram-muted" x="36" y="268">work-items.json · requests/</text>
+    <text class="diagram-muted" x="36" y="286">archive/ · loop.json</text>
+
+    <rect class="box" x="280" y="200" width="200" height="110" rx="10"/>
+    <text class="diagram-text" x="296" y="230" font-weight="600">Herdr pane</text>
+    <text class="diagram-muted" x="296" y="250">split from the current tab</text>
+    <text class="diagram-muted" x="296" y="268">Claude agent wi-&lt;id&gt;</text>
+
+    <rect class="box" x="540" y="200" width="200" height="110" rx="10"/>
+    <text class="diagram-text" x="556" y="230" font-weight="600">Git worktree</text>
+    <text class="diagram-muted" x="556" y="250">one per item</text>
+    <text class="diagram-muted" x="556" y="268">feature/wi-&lt;id&gt;-&lt;slug&gt;</text>
+
+    <path class="arrow" d="M120 110 L120 198"/>
+    <path class="arrow" d="M220 65 L278 65"/>
+    <path class="arrow" d="M480 65 L538 65"/>
+    <path class="arrow" d="M380 110 L380 198"/>
+    <path class="arrow" d="M480 255 L538 255"/>
+    <path class="arrow" d="M280 290 L222 290" style="stroke-dasharray: 4 3"/>
+    <text class="diagram-muted" x="230" y="282">result file</text>
+    <text class="diagram-muted" x="20" y="340">Solid: calls. Dashed: the agent writes its result file, which the mod reads on a later tick.</text>
+  </svg>
+  <figcaption>Figure 1. The mod is the only process that decides what happens next. Actions and the agent report back through files.</figcaption>
+</figure>
+
+<h3>What runs where</h3>
+<table>
+  <thead><tr><th>Component</th><th>Runs</th><th>Writes</th><th>Reads</th></tr></thead>
+  <tbody>
+    <tr><td>Mod timer and guards</td><td>Every interval, inside a Claude session</td><td><code>loop.json</code>, <code>agents/</code>, flags it creates (<code>claiming</code>), <code>requests/</code>, <code>active-project.json</code></td><td>Everything in the state directory, <code>results/</code></td></tr>
+    <tr><td>Actions</td><td>Once per invocation, as Herdr plugin commands</td><td>Flags (status changes and archives), <code>work-items.json</code>, <code>archive/</code></td><td><code>requests/</code>, <code>active-project.json</code>, Azure, git</td></tr>
+    <tr><td>Agent</td><td>In its pane, in its worktree</td><td><code>results/wi-&lt;id&gt;.json</code>, commits in the worktree</td><td>Its prompt</td></tr>
+  </tbody>
+</table>
+
+<h2 id="commands">5. Commands</h2>
+
+<h3><code>/herdr-dev start</code></h3>
+<ol>
+  <li>Resolve the target project (git root of the current folder) and read its <code>.env</code> (section 6). Stop with an error if anything is missing or invalid.</li>
+  <li>If the loop is already running, say so and change nothing.</li>
+  <li>Write <code>active-project.json</code> with the repo root and the settings, so actions never depend on the focused workspace.</li>
+  <li>Set <code>loop.json</code> to running and arm the timer with <code>$.clock.every</code>.</li>
+  <li>Run the first iteration now, not after one full interval.</li>
+  <li>Confirm in one toast: "herdr-dev running every N seconds for &lt;project&gt;".</li>
+</ol>
+
+<h3><code>/herdr-dev stop</code></h3>
+<ul>
+  <li>Cancel the timer and set <code>loop.json</code> to stopped.</li>
+  <li><strong>Does not stop running agents</strong> and does not change flags or Azure state. Work in progress stays where it is.</li>
+  <li>Shows what is still running, so you can decide what to do with it.</li>
+</ul>
+
+<h3><code>/herdr-dev status</code></h3>
+<p>Shows, without changing anything:</p>
+<ul>
+  <li>Whether the loop is running, its interval, the last tick and its outcome, and the next tick.</li>
+  <li>The current item, its flag status, its agent, and how long it has been running.</li>
+  <li>The queue in priority order, with each item's Azure state.</li>
+  <li>Every open conflict and mismatch (section 9).</li>
+</ul>
+
+<h3>Behaviour across restarts</h3>
+<p>The loop lives in a Claude session. If the session closes, the timer stops, but agents and their panes keep running. When a session starts again and <code>loop.json</code> says running, the mod re-arms the timer and the next tick judges the state on disk. Nothing is assumed from memory, so a restart is safe.</p>
+
+<h2 id="config">6. Configuration</h2>
+<p>All settings come from the target project's <code>.env</code>, which is git-ignored. Process environment variables with the same names take precedence, as they do for the existing Azure script.</p>
+<table>
+  <thead><tr><th>Key</th><th>Required</th><th>Default</th><th>Rule</th></tr></thead>
+  <tbody>
+    <tr><td><code>AZURE_DEVOPS_ORG</code></td><td>yes</td><td>none</td><td>Already used by <code>configure-azure</code>.</td></tr>
+    <tr><td><code>AZURE_DEVOPS_PROJECT</code></td><td>yes</td><td>none</td><td>Already used by <code>configure-azure</code>. Also the project filter for the fetch (section 9, fetch scope).</td></tr>
+    <tr><td><code>HERDR_DEV_INTERVAL_SECONDS</code></td><td>yes</td><td>none</td><td>Integer, at least 30.</td></tr>
+    <tr><td><code>HERDR_DEV_BASE_BRANCH</code></td><td>no</td><td><code>main</code></td><td>Pull requests target this branch.</td></tr>
+    <tr><td><code>HERDR_DEV_MAX_ATTEMPTS</code></td><td>no</td><td><code>3</code></td><td>Resets allowed per item before the mod stops resetting it.</td></tr>
+    <tr><td><code>HERDR_DEV_STATE_DIR</code></td><td>no</td><td>see section 3</td><td>Overrides the state directory.</td></tr>
+  </tbody>
+</table>
+<p>Validation happens in <code>start</code>, and each failed key is listed. The mod never starts with an invalid value. The <code>.env</code> file is read but never printed, copied, or sent anywhere.</p>
+
+<h2 id="state">7. State directory</h2>
+<p>Everything the loop knows is in this directory, so the loop can resume after a restart. Each file has one main writer.</p>
+<pre><code>&lt;state dir&gt;/
+  active-project.json        settings and repo root           writer: mod (start)
+  loop.json                  running flag, last tick          writer: mod
+  work-items.json            fetched items, fetchedAt         writer: fetch action
+  flags/wi-&lt;id&gt;.json          the lock and status              writer: mod (claiming), actions
+  agents/wi-&lt;id&gt;.json         the agent that works an item     writer: mod
+  results/wi-&lt;id&gt;.json        the agent's own report          writer: agent
+  requests/&lt;action&gt;.json      input for one action             writer: mod, deleted by the action
+  archive/wi-&lt;id&gt;-&lt;ts&gt;.json  flags that were ended, with reason  writer: actions, mod</code></pre>
+
+<h3>Schemas</h3>
+<pre><code>// active-project.json
+{ "repoRoot": "/path/to/repo", "intervalSeconds": 300, "baseBranch": "main",
+  "maxAttempts": 3, "startedAt": "2026-11-26T09:00:00Z" }
+
+// work-items.json
+{ "fetchedAt": "2026-11-26T09:05:00Z", "project": "Automation",
+  "items": [ { "id": 12, "title": "...", "state": "To Do", "type": "Task",
+               "priority": 2, "tags": ["backend"], "description": "..." } ] }
+
+// flags/wi-12.json
+{ "workItemId": 12, "status": "doing", "attempt": 1,
+  "branch": "feature/wi-12-login-fix", "worktree": "/path/repo-worktrees/wi-12",
+  "agentName": "wi-12", "startedAt": "...", "updatedAt": "..." }
+
+// agents/wi-12.json
+{ "agentName": "wi-12", "paneId": "w1:p4", "startedAt": "...",
+  "sawWorking": true }
+
+// results/wi-12.json  (written by the agent)
+{ "status": "success", "summary": "Fixed the login redirect.", "commit": "a1b2c3d" }
+
+// archive/wi-12-2026-11-26T10-00-00Z.json
+{ "reason": "agent stopped without a result", "previousFlag": { ... } }</code></pre>
+
+<h2 id="iteration">8. One iteration</h2>
+<p>Each tick runs these guards in order. The first guard that stops the tick ends it, and the tick records one line of outcome in <code>loop.json</code> and shows it in <code>status</code>.</p>
+
+<ol class="steps">
+  <li><strong>Loop running?</strong><span class="why"> If not, stop. This is the only guard that is silent.</span></li>
+  <li><strong>Refresh the queue.</strong><span class="why"> Invoke <code>dev-fetch-work-items</code> and wait for its run in the plugin log. While it is running, stop this tick. If the run fails, report its stdout and stop. Do not judge flags against stale data.</span></li>
+  <li><strong>Any To Do items?</strong><span class="why"> If none, the tick is skipped. This is the no-open-items rule.</span></li>
+  <li><strong>Judge in-progress flags.</strong><span class="why"> For each flag in <code>claiming</code>, <code>doing</code> or <code>finishing</code>, check its agent (section 9). Hanging flags are reset or finished; a blocked or failed agent is reported. If any flag still blocks, stop here.</span></li>
+  <li><strong>Check for mismatches.</strong><span class="why"> Compare flags with Azure and the fetched items (section 9). Report them. Mismatches never stop the tick by themselves, but a mismatch on the item about to start does.</span></li>
+  <li><strong>Pick the top item.</strong><span class="why"> Lowest priority number among the To Do items, then lowest id.</span></li>
+  <li><strong>Does a flag already exist for it?</strong><span class="why"> If so, report it as a conflict and stop. Do not look at lower-priority items.</span></li>
+  <li><strong>Claim.</strong><span class="why"> Write <code>flags/wi-&lt;id&gt;.json</code> with status <code>claiming</code>. Write <code>requests/claim.json</code>, then invoke <code>dev-claim-work-item</code> (section 10).</span></li>
+  <li><strong>Wait for the claim.</strong><span class="why"> On later ticks, check the plugin log for the claim run's <code>log_id</code>. While it is running, stop the tick. When it has finished with exit code 0 and the flag is <code>doing</code>, continue. Otherwise report the run's stdout and the archived reason, and stop.</span></li>
+  <li><strong>Start the agent.</strong><span class="why"> Split a pane from the current tab, trust the worktree, start a Claude agent named <code>wi-&lt;id&gt;</code> there with bypassed permissions, and send the prompt (section 11). Write <code>agents/wi-&lt;id&gt;.json</code>.</span></li>
+  <li><strong>Done?</strong><span class="why"> On a later tick, if the agent is idle or done and <code>results/wi-&lt;id&gt;.json</code> exists with <code>"status": "success"</code>, invoke <code>dev-finish-work-item</code> (section 10). The flag moves to <code>finishing</code>, then <code>done</code>.</span></li>
+  <li><strong>Close the finished pane.</strong><span class="why"> After the flag is <code>done</code>, close the item's pane and record the tick.</span></li>
+</ol>
+<p>The loop never starts two items at once. Steps 4 and 7 both check for any in-progress flag, so the rule holds even if a previous run crashed.</p>
+
+<h2 id="flags">9. Flags, hanging work, mismatches</h2>
+
+<h3>Flag lifecycle</h3>
+<div class="state-pills">
+  <span class="pill">(no flag)</span><span class="pill">→ claiming</span><span class="pill">→ doing</span><span class="pill">→ finishing</span><span class="pill ok">→ done</span>
+</div>
+<ul>
+  <li><strong>claiming</strong>: the mod has written it, and the claim action is running. Azure is being moved to Doing.</li>
+  <li><strong>doing</strong>: Azure is Doing, the worktree and branch exist, and an agent is working. Set by the claim action on success.</li>
+  <li><strong>finishing</strong>: the agent succeeded, and the finish action is pushing, opening the pull request and setting Done.</li>
+  <li><strong>done</strong>: Azure is Done and the pull request exists. Kept as a record.</li>
+</ul>
+
+<h3>Hanging work</h3>
+<p>A flag is hanging only when it is in progress and no live agent is working on it. If the agent is known and working, the flag is in progress, not hanging, however long the work takes. Hanging work is reset without asking you, as you decided.</p>
+<table>
+  <thead><tr><th>Flag</th><th>Condition</th><th>Action</th></tr></thead>
+  <tbody>
+    <tr><td><code>claiming</code></td><td>Still <code>claiming</code> after 5 minutes</td><td>Archive the flag, set Azure back to To Do, and retry the item on the next tick. Counts as an attempt.</td></tr>
+    <tr><td><code>doing</code></td><td>The agent record is missing, or <code>herdr agent get</code> no longer finds the agent</td><td>Close its pane if one remains, archive the flag, set Azure to To Do, and count an attempt. The worktree and branch are kept, and the next prompt says it is a resumed attempt.</td></tr>
+    <tr><td><code>doing</code></td><td>The agent is idle or done, <code>sawWorking</code> is true, and there is no result file</td><td>The same as above. The agent stopped without reporting.</td></tr>
+    <tr><td><code>doing</code></td><td>The agent is blocked</td><td>Report only. Do not reset.</td></tr>
+    <tr><td><code>doing</code></td><td>The agent wrote <code>"status": "failed"</code></td><td>Report only. The flag blocks the queue until you decide.</td></tr>
+    <tr><td><code>doing</code></td><td>Agent just started: not yet <code>sawWorking</code> and under 2 minutes old</td><td>Wait. Not hanging yet.</td></tr>
+    <tr><td><code>finishing</code></td><td>Still <code>finishing</code> after 10 minutes</td><td>Run <code>dev-finish-work-item</code> again. It is idempotent: the push is repeatable, and an existing pull request is found before one is created. Not reset to To Do.</td></tr>
+  </tbody>
+</table>
+<p>The time limits in the <code>claiming</code> and <code>finishing</code> rows apply to the actions, which have no agent. They never apply to a <code>doing</code> flag whose agent is known and working.</p>
+<div class="callout warn">
+  <strong>Retry cap.</strong>
+  Each reset counts as an attempt, stored in the flag. At 3 attempts (<code>HERDR_DEV_MAX_ATTEMPTS</code>), the mod stops resetting the item and reports it as a conflict for you to decide. This protects you from an agent that never writes its result file, which would otherwise be retried indefinitely.
+</div>
+
+<h3>Mismatches (report only)</h3>
+<p>The mod never fixes a mismatch. It lists each one in the pane, with the facts, so you can decide. The fetch must succeed for these checks to run.</p>
+<table>
+  <thead><tr><th>Mismatch</th><th>Example</th><th>Shown as</th></tr></thead>
+  <tbody>
+    <tr><td>Flag status disagrees with Azure</td><td>Flag <code>doing</code>, but Azure says To Do</td><td>Expected Azure state for <code>doing</code> is Doing</td></tr>
+    <tr><td>Expected states by flag</td><td><code>claiming</code> → To Do or Doing; <code>doing</code> → Doing; <code>finishing</code> → Doing or Done; <code>done</code> → Done</td><td>The table the check uses</td></tr>
+    <tr><td>Item past To Do with no flag</td><td>Azure says Doing, but no flag exists for it</td><td>Only To Do items may lack a flag</td></tr>
+    <tr><td>Flag for an item no longer fetched</td><td>Item deleted, moved to another project, or unassigned</td><td>The flag is listed with its last known state</td></tr>
+    <tr><td>Unreadable flag or state file</td><td>Invalid JSON</td><td>The file path and the parse error</td></tr>
+    <tr><td>Top item already flagged</td><td>Section 8, step 7</td><td>A conflict, not a mismatch</td></tr>
+  </tbody>
+</table>
+<p>Each row in the pane has a stable key built from its kind and item id. A mismatch is reported once, and raised again only if it changes.</p>
+
+<h2 id="actions">10. Actions</h2>
+<p>These are Herdr plugin actions added to <code>herdr-plugin.toml</code>. Action ids have no dots, as Herdr requires. Each one reads <code>active-project.json</code> for the repo root and never trusts the focused workspace.</p>
+<p>Every invocation follows the same pattern, tested on <code>list-my-work-items</code>:</p>
+<ol>
+  <li>The mod invokes the action. The call returns at once with a <code>log_id</code> and status <code>running</code>.</li>
+  <li>On later ticks, the mod reads <code>herdr plugin log list --plugin dev.automation</code> and finds that <code>log_id</code>.</li>
+  <li>Once the status is no longer <code>running</code>, <code>exit_code</code> 0 means success. The <code>stdout</code> and <code>stderr</code> are the output the mod reports.</li>
+</ol>
+
+<h3><code>dev-fetch-work-items</code></h3>
+<ul>
+  <li><strong>Input:</strong> none.</li>
+  <li><strong>Does:</strong> runs the WIQL query used by <code>list-my-work-items</code>, limited to the project and to To Do, Doing and Done. Writes <code>work-items.json</code> with a new <code>fetchedAt</code>.</li>
+  <li><strong>Outcome:</strong> the plugin log's exit code and stdout. Its stdout also includes the <code>HERDR_PLUGIN_STATE_DIR</code> it ran with, which <code>start</code> compares with the default path.</li>
+  <li><strong>Idempotent:</strong> yes. Writes only the fetch file.</li>
+</ul>
+
+<h3><code>dev-claim-work-item</code></h3>
+<ul>
+  <li><strong>Input:</strong> <code>requests/claim.json</code>, <code>{ "workItemId": N }</code>. Deleted after reading.</li>
+  <li><strong>Does, in order:</strong>
+    <ol>
+      <li>Check that the item is still To Do in Azure. If not, archive the claiming flag with the reason.</li>
+      <li>Set the Azure state to Doing.</li>
+      <li>Create the worktree and branch from a fresh <code>origin/&lt;base&gt;</code>. If the worktree already exists (a resumed attempt), keep it.</li>
+      <li>Move the flag to <code>doing</code>, with the branch and worktree paths.</li>
+    </ol>
+  </li>
+  <li><strong>On failure:</strong> if Azure was already set to Doing, set it back to To Do. Archive the claiming flag with the reason. The mod reports it.</li>
+  <li><strong>Idempotent:</strong> yes, for a resumed attempt.</li>
+</ul>
+
+<h3><code>dev-finish-work-item</code></h3>
+<ul>
+  <li><strong>Input:</strong> <code>requests/finish.json</code>. Deleted after reading.</li>
+  <li><strong>Refuses</strong> unless the result file exists with <code>"status": "success"</code>.</li>
+  <li><strong>Does, in order:</strong>
+    <ol>
+      <li>Refuse if the worktree has uncommitted changes. Report them. Do not commit on the agent's behalf.</li>
+      <li>Push the branch to <code>origin</code>. Never a force push. Never a push to the base branch.</li>
+      <li>Find an open pull request for the branch into the base branch. If none, create one with <code>gh pr create</code>, title and body taken from the work item.</li>
+      <li>Set the Azure state to Done.</li>
+      <li>Move the flag to <code>done</code>, with the pull request URL.</li>
+    </ol>
+  </li>
+  <li><strong>Idempotent:</strong> yes. Each step checks before it acts.</li>
+  <li><strong>On failure:</strong> the flag stays <code>finishing</code>. The mod retries on the next tick, and reports after the retry fails.</li>
+</ul>
+
+<h3><code>dev-reset-work-item</code></h3>
+<ul>
+  <li><strong>Input:</strong> <code>requests/reset.json</code>, with the work item id and the reason.</li>
+  <li><strong>Does:</strong> archives the flag with the reason, sets Azure back to To Do, and keeps the worktree and branch.</li>
+  <li><strong>Refuses</strong> an item whose flag is <code>finishing</code> or <code>done</code>.</li>
+  <li><strong>Note:</strong> the mod closes the pane and writes the attempt count. The action does not touch panes.</li>
+</ul>
+
+<div class="callout">
+  <strong>Invoking an action does not wait for it.</strong>
+  The call returns at once. The mod waits by checking the plugin log on later ticks, and the run's exit code and stdout are its outcome. The state files still hold the flags and the queue, which is what the mod reads to decide the next step.
+</div>
+
+<h2 id="agents">11. Agent launch and completion</h2>
+
+<h3>Launch</h3>
+<ol class="steps">
+  <li><strong>Split a pane.</strong><span class="why"> <code>herdr pane split --current --direction right --cwd &lt;worktree&gt; --no-focus</code>. The new pane id is taken from the response.</span></li>
+  <li><strong>Trust the worktree.</strong><span class="why"> Before starting the agent, set <code>hasTrustDialogAccepted</code> to <code>true</code> for the worktree's path in <code>~/.claude.json</code>. Refuse if the path is not under the configured worktree folder. Without this, Claude stops at its "trust this folder" prompt, and the agent never becomes ready. Tested in spike 5.</span></li>
+  <li><strong>Start may report "not ready" at first.</strong><span class="why"> In spike 5 the start call returned <code>agent_not_ready</code>, yet the agent was <code>idle</code> about 15 seconds later. The mod treats that error as "still starting": it does not fail the item, and it checks the agent again on later ticks.</span></li>
+  <li><strong>Start the agent.</strong><span class="why"> <code>herdr agent start wi-&lt;id&gt; --kind claude --pane &lt;pane-id&gt; -- --dangerously-skip-permissions</code>. The name must match Herdr's rule (<code>[a-z][a-z0-9_-]{0,31}</code>), which <code>wi-&lt;id&gt;</code> does.</span></li>
+  <li><strong>Send the prompt.</strong><span class="why"> <code>herdr agent prompt wi-&lt;id&gt; "&lt;prompt&gt;"</code>, without <code>--wait</code>. The mod polls on later ticks.</span></li>
+  <li><strong>Record the agent.</strong><span class="why"> Write <code>agents/wi-&lt;id&gt;.json</code>.</span></li>
+</ol>
+
+<h3>The prompt</h3>
+<p>The prompt is built from the work item and includes these parts:</p>
+<ul>
+  <li>The work item id, title, type, and description, pasted as plain text.</li>
+  <li>The worktree path and branch. The agent works only inside them.</li>
+  <li>The instruction to implement the item, run the project's tests, and commit with a message that names the item id.</li>
+  <li>The instruction <strong>not to push and not to open a pull request.</strong></li>
+  <li>The result file path and exact format: <code>results/wi-&lt;id&gt;.json</code>, with <code>status</code> set to <code>success</code> or <code>failed</code>, a summary, and the commit id. Written last, after the commit.</li>
+  <li>For a resumed attempt: the note that a previous attempt ended without a result, so the agent should inspect the existing commits and continue.</li>
+</ul>
+<div class="callout warn">
+  <strong>The prompt is the agent's only instructions.</strong>
+  The work item's description is untrusted text written by someone else. It is sent as data inside the prompt, but the agent can still act on what it says. The bypassed permissions make that a real risk (section 14).
+</div>
+
+<h3>Completion</h3>
+<p>An agent is complete when all of these hold on a tick: the agent is <code>idle</code> or <code>done</code>, and the result file exists and is valid JSON. If the result says <code>success</code>, the finish action runs. If it says <code>failed</code>, the mod reports it and waits for you.</p>
+<p>The mod never waits in a blocking call. A tick reads the state, acts on it if it has changed, and returns.</p>
+
+<h3>Reading output</h3>
+<p>For troubleshooting, <code>herdr agent read wi-&lt;id&gt; --source recent-unwrapped --lines 120</code> shows what the agent last printed. The mod does not use it to decide anything.</p>
+
+<h2 id="notify">12. Notifications</h2>
+<p>Notifications use two surfaces, as you chose.</p>
+<ul>
+  <li><strong>Pane.</strong> A <code>ui.render</code> pane, opened by <code>/herdr-dev status</code> or whenever a new conflict or mismatch appears. It lists every open item with its kind, item id, the facts, and the time it was first seen. It stays open until you close it.</li>
+  <li><strong>Toast.</strong> A short toast when a new conflict or mismatch is raised, and when an item reaches Done. A toast never repeats for an item it has already shown, so the same mismatch does not toast on every tick.</li>
+</ul>
+<p>Each row has a key built from its kind and item id, so the pane updates in place instead of stacking duplicates. A row leaves the pane when its cause is gone, for example when you fix the Azure state.</p>
+
+<h2 id="failures">13. Failure modes</h2>
+<table>
+  <thead><tr><th>What happens</th><th>What you see</th><th>How to recover</th></tr></thead>
+  <tbody>
+    <tr><td>Azure is unreachable during fetch</td><td>Toast and pane row; tick skipped</td><td>Fix the network or <code>az login</code>. The next tick retries.</td></tr>
+    <tr><td>Claim fails before Doing</td><td>Archived claiming flag with reason</td><td>Read the archive; the item retries on the next tick, counted as an attempt.</td></tr>
+    <tr><td>Claim fails after Doing is set</td><td>Azure is set back to To Do; archived flag</td><td>Same as above. Check that Azure shows To Do.</td></tr>
+    <tr><td>Herdr cannot split or start the agent</td><td>Flag stays <code>doing</code>; pane row with the Herdr error</td><td>Fix Herdr (for example, the pane is no longer idle), then reset the item with <code>dev-reset-work-item</code>.</td></tr>
+    <tr><td>Agent crashes or exits</td><td>Hanging rule resets it after the agent is gone</td><td>Automatic, up to the retry cap.</td></tr>
+    <tr><td>Agent stuck at Claude's folder-trust prompt</td><td><code>herdr agent start</code> returns <code>agent_not_ready</code>; the pane shows "Yes, I trust this folder"</td><td>Should not happen after the trust step. If it does, the trust entry was not written: fix it, then reset the item.</td></tr>
+    <tr><td>Agent is waiting for input</td><td>Blocked row in the pane</td><td>Answer it in its pane, or send <code>herdr agent send-keys</code>.</td></tr>
+    <tr><td>Agent reports failure</td><td>Failed row; queue blocked</td><td>Read the summary and the worktree. Decide: fix by hand and finish, or reset.</td></tr>
+    <tr><td>Push is rejected</td><td>Finish fails; flag stays <code>finishing</code></td><td>Resolve the conflict in the worktree, then the next tick retries.</td></tr>
+    <tr><td><code>gh pr create</code> fails</td><td>Finish fails; flag stays <code>finishing</code></td><td>Check <code>gh auth status</code>. The next tick retries and finds an existing pull request if one was made.</td></tr>
+    <tr><td>Claude restarts mid-run</td><td>On start, the loop re-judges from disk</td><td>Automatic. Flags and agent records describe the state.</td></tr>
+    <tr><td>Plugin updated while running</td><td>The mod reloads; its guards run again from disk</td><td>Automatic. Nothing is held in memory.</td></tr>
+    <tr><td>Retry cap reached</td><td>Conflict row; the item is not reset again</td><td>Decide: fix and finish, or archive it yourself and let the item be picked up again.</td></tr>
+  </tbody>
+</table>
+
+<h2 id="safety">14. Safety</h2>
+<div class="callout bad">
+  <strong>The agent runs with bypassed permissions.</strong>
+  It can run any command, edit any file it can reach, and install software, all without asking you. The worktree is a directory boundary, not a sandbox: the agent can still reach files outside it and can still use the network. Treat the agent as trusted code you have not reviewed.
+</div>
+<ul>
+  <li><strong>Blast radius.</strong> The agent can delete files in its worktree, or anywhere the user account can write. Keep the loop running only on repositories and machines where that is acceptable.</li>
+  <li><strong>Outward effects.</strong> Pushes, pull requests and Azure state changes happen only in the four actions, never in the agent. The agent is told not to push or open pull requests, and the finish action checks the result before it does either.</li>
+  <li><strong>Trusted folders.</strong> Trusting a worktree lets Claude run the code in it without asking. The mod trusts only the worktrees it creates for work items, never a folder you chose, so the trust step cannot widen what the agent can reach.</li>
+  <li><strong>Never to main.</strong> Pushes go only to the feature branch. Pull requests target the base branch. The finish action never pushes to the base branch and never force-pushes.</li>
+  <li><strong>Merging stays with you.</strong> The mod never merges a pull request.</li>
+  <li><strong>Azure writes.</strong> Only the state field changes. No other fields, no comments, no deletions.</li>
+  <li><strong>Secrets.</strong> <code>.env</code> is read but never printed, copied, sent in a prompt, or written to a state file. The mod passes no Azure credentials to the agent. The agent runs as your user account, which can already reach them.</li>
+  <li><strong>Prompt injection.</strong> A work item's text reaches the agent. The agent acts only in its worktree, and its output reaches Azure and GitHub only through the finish action, which you can review in its pull request.</li>
+  <li><strong>Stopping.</strong> <code>/herdr-dev stop</code> stops the loop only. To stop an agent, close its pane or run <code>herdr agent send-keys wi-&lt;id&gt; ctrl+c</code>.</li>
+</ul>
+
+<details>
+  <summary>Why bypassed permissions, and what you could choose instead</summary>
+  <p>Without bypass, the agent stops and waits for approval in its pane, so the loop stalls whenever you are away. The alternatives are an auto permission mode, which a classifier approves, and default mode, which waits for you. Both reduce unattended progress. Bypass is your decision, recorded here so you can revisit it.</p>
+</details>
+
+<h2 id="open">15. Open questions and verification spikes</h2>
+<p>Status after testing. Spikes 1, 3, 4 and 5 are answered. Spike 2 is still open.</p>
+<table>
+  <thead><tr><th>#</th><th>Question</th><th>How it is answered</th><th>If the answer is no</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Do the mod's own <code>herdr</code> calls get <code>HERDR_ENV</code> and <code>HERDR_PANE_ID</code>?</td><td><strong>Not needed for actions.</strong> Actions get Herdr's environment when Herdr runs them. The mod's direct calls are covered in the pane-split step.</td><td>Pass the pane id explicitly to each direct call</td></tr>
+    <tr><td>2</td><td>Does the state path the mod computes match <code>HERDR_PLUGIN_STATE_DIR</code> as an action sees it?</td><td><strong>Open, not yet tested.</strong> The test needed a throwaway plugin linked into the Herdr registry, and that step was denied. The fetch action will print its state directory, and the mod compares it with the default (section 3).</td><td><code>start</code> refuses and reports both paths. Set <code>HERDR_DEV_STATE_DIR</code> in <code>.env</code> to match.</td></tr>
+    <tr><td>3</td><td>Does <code>herdr agent start --kind claude --pane &lt;id&gt; -- --dangerously-skip-permissions</code> pass the flag through?</td><td><strong>Passed.</strong> The agent process runs with <code>--dangerously-skip-permissions</code>. The first start was blocked by the folder-trust prompt; with the trust entry (spike 5), the agent became ready.</td><td>Use the agent's settings file for bypass instead</td></tr>
+    <tr><td>4</td><td>Does <code>herdr plugin action invoke</code> return before or after the action finishes?</td><td><strong>Answered: before.</strong> It returned in 8 ms with status <code>running</code>. The mod waits through the plugin log.</td><td>Not applicable</td></tr>
+    <tr><td>5</td><td>Does a <code>hasTrustDialogAccepted</code> entry in <code>~/.claude.json</code> stop the trust prompt for a new worktree?</td><td><strong>Answered: yes.</strong> With the trust entry, the test agent started with no prompt, and its pane reached the normal screen. The agent was <code>idle</code> about 15 seconds later. The entry was removed afterwards, and the config again had the same 18 projects as before.</td><td>Send Enter to the trust prompt from the mod, with a check that the prompt is on screen first</td></tr>
+  </tbody>
+</table>
+<details>
+  <summary>Facts the design relies on, with their sources</summary>
+  <ul>
+    <li><code>herdr plugin action invoke</code> takes no arguments, and returns at once with the run's <code>log_id</code> and status <code>running</code>. Measured on this machine.</li>
+    <li><code>herdr plugin log list --plugin dev.automation</code> records each run's <code>status</code>, <code>exit_code</code>, <code>stdout</code>, <code>stderr</code>, and start and finish times. Measured on this machine.</li>
+    <li>The invoke context includes the workspace, tab and focused pane, and the working directory. Measured on this machine. The focused pane can change while the loop runs, so the design does not use it.</li>
+    <li>A new folder opens with Claude's "Yes, I trust this folder" prompt. The prompt blocks the agent until someone answers it. Measured on this machine with a test agent. The trust entry is stored as <code>hasTrustDialogAccepted</code> in <code>~/.claude.json</code>, which I read on this machine (key names only).</li>
+    <li>Startup hooks are one-shot. Herdr plugins documentation, <code>herdr.dev/tui/docs/plugins/</code>.</li>
+    <li><code>HERDR_PLUGIN_STATE_DIR</code> is for local runtime state. Its path is not documented.</li>
+    <li>The state directory at <code>~/.local/state/herdr/plugins/dev.automation</code> exists on this machine, and the Herdr binary references <code>XDG_STATE_HOME</code>.</li>
+    <li>Agent states <code>idle</code>, <code>working</code>, <code>blocked</code>, <code>done</code> and <code>unknown</code>, and the JSON errors <code>timeout</code>, <code>agent_blocked</code>, <code>agent_prompt_stalled</code> and <code>agent_not_ready</code>. The <code>/herdr</code> skill.</li>
+    <li><code>dev.automation</code> is installed from the GitHub checkout, so new actions reach Herdr only after a push and an update.</li>
+  </ul>
+</details>
+
+<h2 id="phases">16. Phases and tests</h2>
+
+<h3>Phases, after you approve this document</h3>
+<ol class="steps">
+  <li><strong>Spikes.</strong><span class="why"> Answer open spikes 2 and 3 in section 15. Spike 1 is not needed, and spike 4 is answered.</span></li>
+  <li><strong>Actions.</strong><span class="why"> Add the four actions and their scripts. Reuse the query and update code in <code>list-my-work-items.ts</code> and <code>create-work-item.ts</code>, and the repo-root and <code>.env</code> code in <code>configure-azure-defaults.ts</code>.</span></li>
+  <li><strong>State and judgement, without outward effects.</strong><span class="why"> The mod's guards, flags, mismatch reports and pane, tested with the actions stubbed.</span></li>
+  <li><strong>Agent launch and completion.</strong><span class="why"> Pane split, agent start, prompt, result file, the hanging rule and the retry cap.</span></li>
+  <li><strong>Finish.</strong><span class="why"> Push, pull request and Done, with idempotent retries.</span></li>
+  <li><strong>Commands and notifications.</strong><span class="why"> <code>start</code>, <code>stop</code>, <code>status</code>, the pane and the toasts.</span></li>
+  <li><strong>Rollout.</strong><span class="why"> You push the branch to GitHub and update the Herdr plugin yourself.</span></li>
+</ol>
+
+<h3>Tests</h3>
+<ul>
+  <li><strong>Static:</strong> <code>claude plugin validate</code> on the mod, and type-checking with <code>tsc</code>.</li>
+  <li><strong>Mod tests:</strong> <code>claude plugin test</code> with <code>$.process.run</code> and <code>$.fs</code> mocked. Cover every guard, every hanging condition, the retry cap, each mismatch row, the pane's keys, and the one-at-a-time rule.</li>
+  <li><strong>Action dry runs:</strong> each action with a <code>--dry-run</code> flag that prints the Azure, git and gh commands it would run, against the real board.</li>
+  <li><strong>End to end:</strong> one run on a throwaway repository and a disposable work item, with the pull request closed afterwards. No real pull request against your project until the end-to-end run passes.</li>
+</ul>
+
+<h2>Review checklist</h2>
+<p>Please answer these before I build:</p>
+<ol>
+  <li>Are the defaults marked <span class="tag confirm">confirm or change</span> correct?</li>
+  <li>Is the agent's result file the right place for the agent to report? (Section 11.)</li>
+  <li>Should a failed agent block the queue, as written, or should you be able to skip it?</li>
+  <li>Is <code>HERDR_DEV_MAX_ATTEMPTS = 3</code> the right cap?</li>
+</ol>
+
+<footer>
+  Design document for herdr-dev. Source of the decisions: the planning conversation of 25 and 26 November 2026. This document describes intended behaviour; nothing in it is implemented yet.
+</footer>
+
+</main>
+</div>
+</body>
+</html>
