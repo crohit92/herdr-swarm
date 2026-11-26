@@ -121,7 +121,7 @@ export async function tick(io: Io, project: ActiveProject): Promise<TickResult> 
     }
   }
 
-  if (!loop.lastJudgedFetchedAt || !(await freshQueue(io, loop))) {
+  if (!(await freshQueue(io, loop))) {
     loop.pending = {
       kind: "fetch",
       logId: await io.invokeAction(ACTIONS.fetch),
