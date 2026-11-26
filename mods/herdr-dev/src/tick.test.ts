@@ -152,6 +152,27 @@ describe("loop control", () => {
     expect(io.loop().pending?.kind).toBe("fetch");
   });
 
+  test("a fresh queue is judged on the first run, without fetching again", async () => {
+    const io = new FakeIo();
+    io.setQueue([todo(3)]);
+    io.setLoop({});
+    const r = await tick(io, PROJECT);
+    expect(io.invoked).toEqual(["dev-claim-work-item"]);
+    expect(r.outcome).toBe("claiming #3");
+  });
+
+  test("a loop that keeps refreshing never starts work if the queue is judged every other tick", async () => {
+    const io = new FakeIo();
+    io.setLoop({});
+    await tick(io, PROJECT); // fetch starts
+    io.setQueue([todo(3)], new Date(T0 + 1000).toISOString());
+    io.finishRun(io.loop().pending!.logId, 0, JSON.stringify({ ok: true, stateDir: "/state" }));
+    await tick(io, PROJECT); // fetch finishes
+    await tick(io, PROJECT); // judge: claims the top item
+    expect(io.invoked.at(-1)).toBe("dev-claim-work-item");
+    expect(io.invoked.filter((a) => a === "dev-fetch-work-items")).toHaveLength(1);
+  });
+
   test("while a run is still running, the tick only waits", async () => {
     const io = new FakeIo();
     io.setLoop({});
