@@ -363,6 +363,28 @@ describe("claim, agent start and completion", () => {
     expect(io.notices().find((n) => n.key === "done:5")?.text).toContain("https://pr/1");
   });
 
+  test("a failed action notice carries its full stderr and stdout, not just the last line", async () => {
+    const io = new FakeIo();
+    io.setQueue([todo(3)]);
+    io.setFlag(flagAt(3, "claiming", T0));
+    io.setLoop({ lastJudgedFetchedAt: OLD, pending: { kind: "claim", logId: "L9", workItemId: 3, startedAt: T0 } });
+    io.runs.set("L9", { status: "failed", exitCode: 1, stdout: '{"ok":false}', stderr: "ERROR: az could not read work item 3\nHINT: run az login" });
+    await tick(io, PROJECT);
+    const text = io.notices().find((n) => n.key === "claim:3")?.text ?? "";
+    expect(text).toContain("az could not read work item 3");
+    expect(text).toContain("HINT: run az login");
+    expect(text).toContain('{"ok":false}');
+  });
+
+  test("a failed action with no output says so", async () => {
+    const io = new FakeIo();
+    io.setQueue([todo(3)]);
+    io.setLoop({ lastJudgedFetchedAt: OLD, pending: { kind: "reset", logId: "L8", workItemId: 3, startedAt: T0 } });
+    io.runs.set("L8", { status: "failed", exitCode: 1, stdout: "", stderr: "" });
+    await tick(io, PROJECT);
+    expect(io.notices().find((n) => n.key === "reset:3")?.text).toContain("the action printed nothing");
+  });
+
   test("a failed finish keeps the flag finishing and reports the error", async () => {
     const io = new FakeIo();
     io.setQueue([todo(5, { state: "Doing" })]);
