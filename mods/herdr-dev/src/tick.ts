@@ -143,10 +143,24 @@ async function freshQueue(io: Io, loop: LoopState): Promise<boolean> {
   return items.fetchedAt > (loop.lastJudgedFetchedAt ?? "");
 }
 
+// The full output of a failed action run, on one line for the notice. Stderr comes
+// first, since the actions print their errors there; stdout follows. Capped so a long
+// log cannot fill the pane.
+const OUTPUT_CAP = 800;
+
+export function runOutput(run: { stdout: string; stderr: string }): string {
+  const text = [run.stderr.trim(), run.stdout.trim()]
+    .filter((part) => part !== "")
+    .join(" | ")
+    .replace(/\s*\n\s*/g, " | ");
+  if (text === "") return "the action printed nothing";
+  return text.length > OUTPUT_CAP ? `${text.slice(0, OUTPUT_CAP)}...` : text;
+}
+
 // Handles the outcome of a finished action run.
 async function afterRun(ctx: Ctx, pending: Pending, run: { exitCode?: number; stdout: string; stderr: string }): Promise<string> {
   const ok = run.exitCode === 0;
-  const detail = (run.stderr || run.stdout).trim().split("\n").pop() ?? "";
+  const detail = runOutput(run);
   const id = pending.workItemId;
 
   if (pending.kind === "fetch") {
